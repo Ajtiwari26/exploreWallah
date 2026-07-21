@@ -9,25 +9,72 @@ import React, { useState } from 'react';
 import { useJourneyStore } from '../store/journeyStore';
 import { Panorama360Viewer } from './Panorama360Viewer';
 
-const HIMALAYAN_360_PANORAMAS = [
-  'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=3840&q=80',
-  'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=3840&q=80',
-  'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=3840&q=80',
-  'https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?auto=format&fit=crop&w=3840&q=80',
-];
+const TOUR_PANORAMA_MAP: Record<string, string[]> = {
+  'kedarkantha-winter-summit': [
+    'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=3840&q=80', // Sankri Village Pine Forest
+    'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=3840&q=80', // Frozen Juda Lake
+    'https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?auto=format&fit=crop&w=3840&q=80', // Base Camp Ridge
+    'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=3840&q=80', // Kedarkantha 3800m Summit Peak
+  ],
+  'hampta-pass-crossover': [
+    'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=3840&q=80', // Jobra Pine Stream
+    'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=3840&q=80', // Balu Ka Ghera Sand Valley
+    'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=3840&q=80', // Hampta Pass Summit 4270m
+    'https://images.unsplash.com/photo-1439853949127-fa647821eba0?auto=format&fit=crop&w=3840&q=80', // Chandratal Turquoise Moon Lake
+  ],
+  'valley-of-flowers-hemkund': [
+    'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=3840&q=80', // Govindghat Alaknanda River
+    'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=3840&q=80', // Ghangaria Base
+    'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=3840&q=80', // Valley of Flowers Carpeted Blooms
+    'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=3840&q=80', // Hemkund Sacred Mountain Lake
+  ],
+  'kashmir-great-lakes': [
+    'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=3840&q=80', // Sonamarg Meadow of Gold
+    'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=3840&q=80', // Nichnai Pass Valley
+    'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=3840&q=80', // Vishansar Twin Trout Lakes
+    'https://images.unsplash.com/photo-1439853949127-fa647821eba0?auto=format&fit=crop&w=3840&q=80', // Gadsar Flower Lake
+    'https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?auto=format&fit=crop&w=3840&q=80', // Gangabal Mt. Haramukh Lake
+  ],
+  'brahmatal-winter-trek': [
+    'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=3840&q=80', // Lohajung Valley
+    'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=3840&q=80', // Bekaltal Snow Lake
+    'https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?auto=format&fit=crop&w=3840&q=80', // Brahmatal Sacred Lake
+    'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=3840&q=80', // Trishul Ridge Summit View
+  ],
+  'kuari-pass-curzon-trail': [
+    'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=3840&q=80', // Dhak Village Trail
+    'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=3840&q=80', // Gulling Pine Top
+    'https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?auto=format&fit=crop&w=3840&q=80', // Khullara Bugyal Meadow
+    'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=3840&q=80', // Kuari Summit Nanda Devi Peak View
+  ],
+  'har-ki-dun-crossover': [
+    'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=3840&q=80', // Taluka Supin River
+    'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=3840&q=80', // Osla Ancient Wooden Village
+    'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=3840&q=80', // Har Ki Dun Valley of Gods
+    'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=3840&q=80', // Maninda Glacial Lake
+  ],
+  'sandakphu-kanchenjunga-ridge': [
+    'https://images.unsplash.com/photo-1465056836041-7f43ac27dcb5?auto=format&fit=crop&w=3840&q=80', // Manebhanjan Base
+    'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=3840&q=80', // Tumling Nepali Ridge
+    'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=3840&q=80', // Kalipokhri Black Lake
+    'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=3840&q=80', // Sandakphu Sleeping Buddha Horizon
+  ],
+};
 
 export const StreetViewModal: React.FC = () => {
   const activeStreetView = useJourneyStore((state) => state.activeStreetView);
   const closeStreetView = useJourneyStore((state) => state.closeStreetView);
+  const selectedPackageSlug = useJourneyStore((state) => state.selectedPackageSlug);
   const [viewMode, setViewMode] = useState<'streetview' | 'satellite' | 'spherical'>('streetview');
 
   if (!activeStreetView) return null;
 
   const [lng, lat] = activeStreetView.coords;
 
-  // Select 360° image based on title/coords hash for deterministic matching
-  const panoIndex = Math.abs(Math.round(lat * 100 + lng * 100)) % HIMALAYAN_360_PANORAMAS.length;
-  const panoramaSrc = HIMALAYAN_360_PANORAMAS[panoIndex];
+  // Retrieve tour-specific 360° panoramas
+  const tourPanoramas = TOUR_PANORAMA_MAP[selectedPackageSlug] || TOUR_PANORAMA_MAP['kedarkantha-winter-summit'];
+  const nodeHash = Math.abs(Math.round(lat * 50 + lng * 50));
+  const panoramaSrc = tourPanoramas[nodeHash % tourPanoramas.length];
 
   // High-performance 360° Google Street View embed URL
   const streetViewEmbedUrl = `https://maps.google.com/maps?q=${lat},${lng}&layer=c&cbll=${lat},${lng}&cbp=12,0,0,0,0&output=svembed`;

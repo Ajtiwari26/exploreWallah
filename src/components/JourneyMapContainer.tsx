@@ -115,12 +115,25 @@ export const JourneyMapContainer: React.FC = () => {
     if (!container) return;
 
     const handleNativeWheel = (e: WheelEvent) => {
-      // Ignore scroll inside sidebar list so user can scroll sidebar text
-      if ((e.target as HTMLElement)?.closest('.ew-waypoint-list')) {
+      const targetEl = e.target as HTMLElement | null;
+
+      // Allow horizontal scroll on tour selection strip without triggering red path journey scroll
+      const packageScroller = targetEl?.closest('.ew-package-scroller') as HTMLElement | null;
+      const topBar = targetEl?.closest('.ew-top-bar') as HTMLElement | null;
+
+      if (packageScroller || topBar) {
+        if (packageScroller) {
+          packageScroller.scrollLeft += e.deltaY || e.deltaX;
+        }
         return;
       }
 
-      // CRITICAL: Block browser & map trackpad zoom
+      // Ignore scroll inside sidebar list so user can scroll sidebar text
+      if (targetEl?.closest('.ew-waypoint-list')) {
+        return;
+      }
+
+      // CRITICAL: Block browser & map trackpad zoom for journey map progress
       e.preventDefault();
       e.stopPropagation();
 
