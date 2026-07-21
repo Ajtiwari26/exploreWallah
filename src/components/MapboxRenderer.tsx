@@ -342,11 +342,15 @@ export const MapLibreRenderer: React.FC<MapRendererProps> = ({
         const diff = targetP - currentProgressRef.current;
 
         // Detect whether user is actively scrolling along the tour path
-        const isScrolling = Math.abs(diff) > 0.0008;
+        const isScrolling = Math.abs(diff) > 0.0003;
 
         if (isScrolling) {
-          hasUserCustomAngleRef.current = false;
           currentProgressRef.current += diff * 0.12;
+        } else if (map.isMoving() || map.isRotating()) {
+          // Store user's live custom viewing angle when manually orbiting/dragging
+          userCustomBearingRef.current = map.getBearing();
+          userCustomPitchRef.current = map.getPitch();
+          hasUserCustomAngleRef.current = true;
         }
 
         // Compute camera frame from smoothed progress
@@ -360,10 +364,13 @@ export const MapLibreRenderer: React.FC<MapRendererProps> = ({
         let targetBearing = frame.bearing;
         let targetPitch = frame.pitch;
 
-        // When scroll stops, allow 100% free manual camera exploration
-        if (!isScrolling && (hasUserCustomAngleRef.current || map.isMoving())) {
+        // When scroll stops and user has set custom angle, preserve user's free viewing angle
+        if (!isScrolling && hasUserCustomAngleRef.current) {
           targetBearing = userCustomBearingRef.current;
           targetPitch = userCustomPitchRef.current;
+        } else if (isScrolling) {
+          // When scrolling resumes, smoothly fade user custom angle flag
+          hasUserCustomAngleRef.current = false;
         }
 
         // Dynamic Terrain Collision Guard: prevent camera from clipping into hills
