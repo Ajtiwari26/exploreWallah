@@ -22,8 +22,8 @@ export async function fetchRealRoadRoute(
     return memoryRouteCache.get(packageSlug)!;
   }
 
-  // 2. LocalStorage cache (v2 for clean one-way routes)
-  const storageKey = `ew_route_cache_v2_${packageSlug}`;
+  // 2. LocalStorage cache (v3 for road + foot trek routes)
+  const storageKey = `ew_route_cache_v3_${packageSlug}`;
   const cachedData = localStorage.getItem(storageKey);
   if (cachedData) {
     try {
@@ -35,53 +35,85 @@ export async function fetchRealRoadRoute(
     }
   }
 
-  // 3. Format waypoints for OSRM API
-  const coordString = waypoints.map((w) => `${w.coordinates[0]},${w.coordinates[1]}`).join(';');
-  
-  try {
-    const response = await fetch(
-      `https://router.project-osrm.org/route/v1/driving/${coordString}?overview=full&geometries=geojson`
-    );
+  let roadCoords: [number, number][] = [];
+  let trekCoords: [number, number][] = [];
 
-    if (response.ok) {
-      const data = await response.json();
-      if (data.routes && data.routes.length > 0 && data.routes[0].geometry) {
-        const geometry: GeoJSON.LineString = data.routes[0].geometry;
-        memoryRouteCache.set(packageSlug, geometry);
-        try {
-          localStorage.setItem(storageKey, JSON.stringify(geometry));
-        } catch {
-          // Ignore
-        }
-        return geometry;
+  // Segment 1: Road Drive from Starting Hub to Base Camp (Waypoints 0 to 1)
+  const roadWaypoints = waypoints.slice(0, 2);
+  const roadCoordStr = roadWaypoints.map((w) => `${w.coordinates[0]},${w.coordinates[1]}`).join(';');
+
+  try {
+    const roadRes = await fetch(
+      `https://router.project-osrm.org/route/v1/driving/${roadCoordStr}?overview=full&geometries=geojson`
+    );
+    if (roadRes.ok) {
+      const roadData = await roadRes.json();
+      if (roadData.routes && roadData.routes[0]?.geometry?.coordinates) {
+        roadCoords = roadData.routes[0].geometry.coordinates;
       }
     }
-  } catch (err) {
-    console.warn('OSRM routing fetch failed, using fallback:', err);
+  } catch {
+    // Fallback road
+    roadCoords = denseInterpolate(roadWaypoints[0].coordinates, roadWaypoints[1].coordinates, 40);
   }
 
-  // Fallback dense interpolation
-  const denseCoords: [number, number][] = [];
-  for (let i = 0; i < waypoints.length - 1; i++) {
-    const start = waypoints[i].coordinates;
-    const end = waypoints[i + 1].coordinates;
-    const steps = 50;
+  if (roadCoords.length === 0) {
+    roadCoords = denseInterpolate(roadWaypoints[0].coordinates, roadWaypoints[1].coordinates, 40);
+  }
 
-    for (let s = 0; s <= steps; s++) {
-      const t = s / steps;
-      const lng = start[0] + (end[0] - start[0]) * t;
-      const lat = start[1] + (end[1] - start[1]) * t;
-      denseCoords.push([lng, lat]);
+  // Segment 2: Mountain Foot Trek Trail from Base Camp to Summit / Alpine Lakes (Waypoints 1 to end)
+  const trekWaypoints = waypoints.slice(1);
+  const trekCoordStr = trekWaypoints.map((w) => `${w.coordinates[0]},${w.coordinates[1]}`).join(';');
+
+  try {
+    const trekRes = await fetch(
+      `https://router.project-osrm.org/route/v1/foot/${trekCoordStr}?overview=full&geometries=geojson`
+    );
+    if (trekRes.ok) {
+      const trekData = await trekRes.json();
+      if (trekData.routes && trekData.routes[0]?.geometry?.coordinates) {
+        trekCoords = trekData.routes[0].geometry.coordinates;
+      }
+    }
+  } catch {
+    // Fallback foot trail
+  }
+
+  if (trekCoords.length === 0) {
+    // Dense trail interpolation between mountain waypoints
+    for (let i = 0; i < trekWaypoints.length - 1; i++) {
+      const seg = denseInterpolate(trekWaypoints[i].coordinates, trekWaypoints[i + 1].coordinates, 60);
+      trekCoords.push(...seg);
     }
   }
 
-  const fallbackGeo: GeoJSON.LineString = {
+  // Combine Road + Foot Trek coordinates
+  const combinedCoords = [...roadCoords, ...trekCoords];
+
+  const fullGeo: GeoJSON.LineString = {
     type: 'LineString',
-    coordinates: denseCoords,
+    coordinates: combinedCoords,
   };
 
-  memoryRouteCache.set(packageSlug, fallbackGeo);
-  return fallbackGeo;
+  memoryRouteCache.set(packageSlug, fullGeo);
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(fullGeo));
+  } catch {
+    // Ignore
+  }
+
+  return fullGeo;
+}
+
+function denseInterpolate(start: [number, number], end: [number, number], steps: number): [number, number][] {
+  const result: [number, number][] = [];
+  for (let s = 0; s <= steps; s++) {
+    const t = s / steps;
+    const lng = start[0] + (end[0] - start[0]) * t;
+    const lat = start[1] + (end[1] - start[1]) * t;
+    result.push([lng, lat]);
+  }
+  return result;
 }
 
 /**

@@ -280,26 +280,37 @@ export const MapLibreRenderer: React.FC<MapRendererProps> = ({
         markersRef.current.push(marker);
       });
 
-      // 2. Add intermediate Street View inspection dots along the road route geometry
+      // 2. Add intermediate Street View & Footprint Trek inspection markers along route geometry
       const fullCoords = routeData.route_geometry.coordinates as [number, number][];
       if (fullCoords.length >= 4) {
         // Sample 6 intermediate camera inspection points along the route
         const sampleRatios = [0.15, 0.3, 0.45, 0.6, 0.75, 0.9];
-        const sampleIndices = sampleRatios.map((r) => Math.floor(fullCoords.length * r));
 
-        sampleIndices.forEach((coordIdx, stepNum) => {
+        sampleRatios.forEach((ratio, stepNum) => {
+          const coordIdx = Math.floor(fullCoords.length * ratio);
           const pt = fullCoords[coordIdx];
           if (!pt) return;
 
+          const isTrekSection = ratio >= 0.3; // Road drive is first ~30%, rest is mountain trek
           const svEl = document.createElement('div');
-          svEl.className = 'ew-sv-dot';
-          svEl.title = `Click for 360° Street View Point ${stepNum + 1}`;
-          svEl.innerHTML = `<div class="ew-sv-dot-icon"></div>`;
+
+          if (isTrekSection) {
+            svEl.className = 'ew-footprint-dot';
+            svEl.title = `👣 Mountain Footprint Trek Trail - Point ${stepNum + 1}`;
+            svEl.innerHTML = `<div class="ew-footprint-icon">👣</div>`;
+          } else {
+            svEl.className = 'ew-sv-dot';
+            svEl.title = `🚗 Road Drive Section - Point ${stepNum + 1}`;
+            svEl.innerHTML = `<div class="ew-sv-dot-icon"></div>`;
+          }
 
           const handleClick = (e: Event) => {
             e.preventDefault();
             e.stopPropagation();
-            triggerGoogleEarthDive(pt, `Route 360° View Point ${stepNum + 1}`);
+            const locationTitle = isTrekSection
+              ? `👣 Mountain Footprint Trek Point ${stepNum + 1}`
+              : `🚗 Road Drive View Point ${stepNum + 1}`;
+            triggerGoogleEarthDive(pt, locationTitle);
           };
 
           svEl.addEventListener('click', handleClick);

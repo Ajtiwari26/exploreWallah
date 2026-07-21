@@ -365,6 +365,30 @@ html, body, #root {
   text-align: right;
 }
 
+.ew-trail-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--ew-border);
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ew-legend-item.road {
+  color: #ff3366;
+}
+
+.ew-legend-item.trek {
+  color: #ffab00;
+}
+
+.ew-legend-divider {
+  color: var(--ew-text-muted);
+}
+
 /* ============================
    Waypoint Sidebar
    ============================ */
@@ -697,8 +721,36 @@ html, body, #root {
   }
   50% {
     transform: translateX(-50%) scale(2.5);
-    opacity: 0;
-  }
+}
+
+/* ==========================================================================
+   👣 Footprint Mountain Trek Trail Pin Along Route
+   ========================================================================== */
+.ew-footprint-dot {
+  cursor: pointer;
+  z-index: 99;
+  pointer-events: auto;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.2s ease;
+  filter: drop-shadow(0 0 10px rgba(255, 171, 0, 0.8));
+  position: relative;
+}
+
+.ew-footprint-dot:hover {
+  transform: scale(1.4) translateY(-3px);
+  filter: drop-shadow(0 0 20px rgba(255, 171, 0, 1));
+}
+
+.ew-footprint-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(20, 20, 25, 0.9);
+  border: 2px solid #ffab00;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  box-shadow: 0 0 15px rgba(255, 171, 0, 0.5);
 }
 
 /* ==========================================================================

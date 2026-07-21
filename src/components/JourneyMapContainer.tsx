@@ -253,6 +253,11 @@ export const JourneyMapContainer: React.FC = () => {
             />
           </div>
           <span className="ew-progress-label">{progressPercent}%</span>
+          <div className="ew-trail-legend">
+            <span className="ew-legend-item road">🔴 🚗 Road Drive</span>
+            <span className="ew-legend-divider">|</span>
+            <span className="ew-legend-item trek">👣 Mountain Trek</span>
+          </div>
         </div>
       )}
 

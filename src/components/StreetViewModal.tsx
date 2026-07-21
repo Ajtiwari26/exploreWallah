@@ -29,7 +29,7 @@ const TOUR_PANORAMA_MAP: Record<string, string[]> = {
     'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=3840&q=80', // Hemkund Sacred Mountain Lake
   ],
   'kashmir-great-lakes': [
-    'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=3840&q=80', // Sonamarg Meadow of Gold
+    'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=3840&q=80', // Sonamarg Kashmiri Alpine Meadow
     'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=3840&q=80', // Nichnai Pass Valley
     'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=3840&q=80', // Vishansar Twin Trout Lakes
     'https://images.unsplash.com/photo-1439853949127-fa647821eba0?auto=format&fit=crop&w=3840&q=80', // Gadsar Flower Lake

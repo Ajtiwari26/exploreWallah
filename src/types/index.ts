@@ -32,6 +32,7 @@ export interface RouteData {
   description: string;
   thumbnail: string;
   route_geometry: GeoJSON.LineString;
+  roadSplitIndex?: number;
   waypoints: Waypoint[];
 }
 
