@@ -10,7 +10,12 @@ import type { RouteData } from '../types';
 
 export const mockRouteData: RouteData = {
   id: 1,
+  slug: 'kedarkantha-trek',
   title: 'Shimla Ridge to Sarahan Temple Trek',
+  duration: '5 Days / 4 Nights',
+  difficulty: 'Easy',
+  price: '₹8,500',
+  thumbnail: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80',
   category: 'Treks',
   season: 'Summer',
   state: 'Himachal Pradesh',

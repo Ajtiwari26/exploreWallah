@@ -114,7 +114,6 @@ export const MapLibreRenderer: React.FC<MapRendererProps> = ({
       zoom: cameraState.zoom,
       pitch: cameraState.pitch,
       bearing: cameraState.bearing,
-      antialias: true,
       maxPitch: 85,
       minZoom: 5,
       maxTileCacheSize: 500,
@@ -235,8 +234,6 @@ export const MapLibreRenderer: React.FC<MapRendererProps> = ({
 
       // Snap waypoints 100% directly ONTO the road LineString geometry
       const snappedWaypoints = snapWaypointsToRoute(routeData.route_geometry, routeData.waypoints);
-
-      const openStreetViewStore = useJourneyStore.getState().openStreetView;
 
       const triggerGoogleEarthDive = (targetCoords: [number, number], title: string) => {
         isFlyingRef.current = true;

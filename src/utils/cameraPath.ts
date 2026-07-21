@@ -14,8 +14,7 @@ import length from '@turf/length';
 import bearing from '@turf/bearing';
 import { simplify } from '@turf/simplify';
 import bezierSpline from '@turf/bezier-spline';
-import { lineString, point } from '@turf/helpers';
-import lineSliceAlong from '@turf/line-slice-along';
+import { lineString } from '@turf/helpers';
 import type { Waypoint } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

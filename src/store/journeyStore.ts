@@ -50,9 +50,13 @@ interface JourneyState {
   activeStreetView: { coords: [number, number]; title: string } | null;
   openStreetView: (coords: [number, number], title: string) => void;
   closeStreetView: () => void;
+
+  // Camera state
+  cameraState: CameraState;
+  setCameraState: (state: CameraState) => void;
 }
 
-export const useJourneyStore = create<JourneyState>((set, get) => ({
+export const useJourneyStore = create<JourneyState>((set) => ({
   packages: allPackages,
   selectedPackageSlug: allPackages[0].slug,
 

@@ -66,8 +66,7 @@ export class ThreeTubeLayer {
     this.renderer = new THREE.WebGLRenderer({
       canvas: map.getCanvas(),
       context: gl,
-      outputColorSpace: THREE.SRGBColorSpace,
-    });
+    } as any);
     this.renderer.autoClear = false;
 
     this.buildTubeMesh();
@@ -146,7 +145,7 @@ export class ThreeTubeLayer {
     this.scene.add(this.tubeMesh);
   }
 
-  render(gl: WebGLRenderingContext, matrix: number[]) {
+  render(_gl: WebGLRenderingContext, matrix: number[]) {
     if (!this.renderer || !this.map) return;
 
     const m = new THREE.Matrix4().fromArray(matrix);

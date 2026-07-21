@@ -18,7 +18,7 @@ interface Panorama360ViewerProps {
   coords: [number, number];
 }
 
-export const Panorama360Viewer: React.FC<Panorama360ViewerProps> = ({ imageSrc, title, coords }) => {
+export const Panorama360Viewer: React.FC<Panorama360ViewerProps> = ({ imageSrc, title, coords: _coords }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [heading, setHeading] = useState(0);
   const [isAutoRotating, setIsAutoRotating] = useState(true);
@@ -46,7 +46,6 @@ export const Panorama360Viewer: React.FC<Panorama360ViewerProps> = ({ imageSrc, 
     // 1. Scene, Camera, Renderer
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, width / height, 1, 1100);
-    camera.target = new THREE.Vector3(0, 0, 0);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));

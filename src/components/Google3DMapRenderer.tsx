@@ -14,7 +14,7 @@ import { useJourneyStore } from '../store/journeyStore';
 
 export const Google3DMapRenderer: React.FC<MapRendererProps> = ({
   routeData,
-  activeWaypointIndex,
+  activeWaypointIndex: _activeWaypointIndex,
   cameraState,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -25,14 +25,15 @@ export const Google3DMapRenderer: React.FC<MapRendererProps> = ({
 
   const loadGoogleMapsAPI = useCallback(() => {
     return new Promise<void>((resolve, reject) => {
-      if (window.google?.maps?.maps3d) {
+      const win = window as any;
+      if (win.google?.maps?.maps3d) {
         resolve();
         return;
       }
 
       if (document.querySelector('script[src*="maps.googleapis.com"]')) {
         const checkInterval = setInterval(() => {
-          if (window.google?.maps?.maps3d) {
+          if (win.google?.maps?.maps3d) {
             clearInterval(checkInterval);
             resolve();
           }
@@ -52,7 +53,7 @@ export const Google3DMapRenderer: React.FC<MapRendererProps> = ({
       script.defer = true;
       script.onload = () => {
         const checkReady = setInterval(() => {
-          if (window.google?.maps?.maps3d) {
+          if (win.google?.maps?.maps3d) {
             clearInterval(checkReady);
             resolve();
           }
