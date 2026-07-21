@@ -1,0 +1,37 @@
+{
+  "name": "explorewallah",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@turf/along": "^7.3.5",
+    "@turf/bearing": "^7.3.5",
+    "@turf/bezier-spline": "^7.3.5",
+    "@turf/helpers": "^7.3.5",
+    "@turf/length": "^7.3.5",
+    "@turf/line-slice-along": "^7.3.5",
+    "@turf/simplify": "^7.3.5",
+    "@types/three": "^0.185.1",
+    "gsap": "^3.15.0",
+    "maplibre-gl": "^5.24.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "three": "^0.185.1",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "oxlint": "^1.71.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.1.1"
+  }
+}

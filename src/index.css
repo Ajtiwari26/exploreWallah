@@ -1,0 +1,892 @@
+/**
+ * ExploreWallah - Global Styles
+ * 
+ * Premium dark glassmorphism design system with package scroller,
+ * floating zoom controls (+/-), dynamic OSRM trail overlays, and micro-animations.
+ */
+
+/* ============================
+   CSS Variables / Design Tokens
+   ============================ */
+:root {
+  --ew-bg-dark: #0a0a0f;
+  --ew-bg-glass: rgba(12, 12, 20, 0.85);
+  --ew-bg-glass-hover: rgba(25, 25, 42, 0.9);
+  --ew-accent: #00ffcc;
+  --ew-accent-glow: rgba(0, 255, 204, 0.35);
+  --ew-accent-dim: rgba(0, 255, 204, 0.15);
+  --ew-text-primary: #f0f0f5;
+  --ew-text-secondary: #9a9ab0;
+  --ew-text-muted: #656580;
+  --ew-border: rgba(255, 255, 255, 0.1);
+  --ew-border-active: rgba(0, 255, 204, 0.5);
+  --ew-radius: 14px;
+  --ew-radius-sm: 8px;
+  --ew-transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --ew-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ============================
+   Reset & Base
+   ============================ */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--ew-font);
+  background: var(--ew-bg-dark);
+  color: var(--ew-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Loading State */
+.ew-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 16px;
+  color: var(--ew-accent);
+  background: rgba(10, 10, 15, 0.9);
+}
+
+.ew-loading-spinner {
+  width: 44px;
+  height: 44px;
+  border: 3px solid var(--ew-border);
+  border-top-color: var(--ew-accent);
+  border-radius: 50%;
+  animation: ew-spin 0.8s linear infinite;
+}
+
+@keyframes ew-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Root Layout */
+.ew-journey-container {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.ew-map-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* Top Header & Package Scroller Bar */
+.ew-control-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 24px;
+  background: linear-gradient(180deg, rgba(5, 5, 10, 0.9) 0%, rgba(5, 5, 10, 0.4) 70%, transparent 100%);
+  pointer-events: none;
+}
+
+.ew-control-bar > * {
+  pointer-events: all;
+}
+
+.ew-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ew-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ew-logo-icon {
+  font-size: 28px;
+  filter: drop-shadow(0 0 10px var(--ew-accent-glow));
+}
+
+.ew-logo-text {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, var(--ew-accent) 0%, #80ffdb 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.ew-engine-toggle {
+  display: flex;
+  gap: 6px;
+  background: var(--ew-bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--ew-border);
+  border-radius: var(--ew-radius);
+  padding: 4px;
+}
+
+.ew-engine-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--ew-radius-sm);
+  background: transparent;
+  color: var(--ew-text-secondary);
+  font-family: var(--ew-font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--ew-transition);
+}
+
+.ew-engine-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ew-text-primary);
+}
+
+.ew-engine-btn.active {
+  background: var(--ew-accent);
+  color: #000;
+  box-shadow: 0 0 20px var(--ew-accent-glow);
+}
+
+/* Package Scroller Horizontal Bar */
+.ew-package-scroller {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ew-border) transparent;
+}
+
+.ew-package-scroller::-webkit-scrollbar {
+  height: 4px;
+}
+
+.ew-package-scroller::-webkit-scrollbar-thumb {
+  background: var(--ew-border);
+  border-radius: 4px;
+}
+
+.ew-package-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: var(--ew-bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--ew-border);
+  border-radius: 30px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--ew-transition);
+  flex-shrink: 0;
+}
+
+.ew-package-pill:hover {
+  background: var(--ew-bg-glass-hover);
+  border-color: var(--ew-border-active);
+}
+
+.ew-package-pill.active {
+  background: rgba(0, 255, 204, 0.12);
+  border-color: var(--ew-accent);
+  box-shadow: 0 0 20px rgba(0, 255, 204, 0.2);
+}
+
+.ew-pill-icon {
+  font-size: 18px;
+}
+
+.ew-pill-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.ew-pill-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ew-text-primary);
+}
+
+.ew-package-pill.active .ew-pill-title {
+  color: var(--ew-accent);
+}
+
+.ew-pill-meta {
+  font-size: 11px;
+  color: var(--ew-text-secondary);
+}
+
+/* ============================
+   Floating Zoom In / Out Controls
+   ============================ */
+.ew-zoom-controls {
+  position: absolute;
+  right: 24px;
+  top: 140px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ew-zoom-btn {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--ew-text-primary);
+  background: var(--ew-bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--ew-border);
+  border-radius: var(--ew-radius);
+  cursor: pointer;
+  transition: var(--ew-transition);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.ew-zoom-btn:hover {
+  background: var(--ew-accent);
+  color: #000;
+  border-color: var(--ew-accent);
+  box-shadow: 0 0 20px var(--ew-accent-glow);
+  transform: scale(1.08);
+}
+
+/* ============================
+   Tour Hint & Progress Bar
+   ============================ */
+.ew-tour-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 32px;
+  background: var(--ew-bg-glass);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--ew-accent);
+  border-radius: 40px;
+  box-shadow: 0 0 30px var(--ew-accent-glow), 0 10px 40px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  animation: pulseHint 2s infinite ease-in-out;
+}
+
+@keyframes pulseHint {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.9; }
+  50% { transform: translate(-50%, -50%) scale(1.05); opacity: 1; }
+}
+
+.ew-tour-hint-icon {
+  font-size: 32px;
+}
+
+.ew-tour-hint-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ew-text-primary);
+  letter-spacing: 0.5px;
+}
+
+.ew-progress-bar-container {
+  position: absolute;
+  bottom: 24px;
+  left: 440px;
+  right: 80px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 18px;
+  background: var(--ew-bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--ew-border);
+  border-radius: 30px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+
+.ew-progress-bar-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.ew-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #00e5ff, #00ffff);
+  border-radius: 4px;
+  box-shadow: 0 0 12px var(--ew-accent-glow);
+  transition: width 0.1s linear;
+}
+
+.ew-progress-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ew-accent);
+  min-width: 40px;
+  text-align: right;
+}
+
+/* ============================
+   Waypoint Sidebar
+   ============================ */
+.ew-sidebar {
+  position: absolute;
+  top: 140px;
+  left: 24px;
+  bottom: 24px;
+  width: 390px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  background: var(--ew-bg-glass);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--ew-border);
+  border-radius: var(--ew-radius);
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.ew-sidebar-header {
+  position: relative;
+  padding: 24px 20px 16px;
+  border-bottom: 1px solid var(--ew-border);
+}
+
+.ew-price-badge {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  padding: 4px 12px;
+  background: var(--ew-accent);
+  color: #000;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 20px;
+  box-shadow: 0 0 12px var(--ew-accent-glow);
+}
+
+.ew-trek-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 10px;
+  padding-right: 70px;
+  color: var(--ew-text-primary);
+}
+
+.ew-trek-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.ew-tag {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: 20px;
+  background: var(--ew-accent-dim);
+  color: var(--ew-accent);
+  border: 1px solid rgba(0, 255, 204, 0.2);
+}
+
+.ew-trek-desc {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ew-text-secondary);
+}
+
+/* Waypoint List */
+.ew-waypoint-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ew-text-muted) transparent;
+}
+
+.ew-waypoint-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.ew-waypoint-list::-webkit-scrollbar-thumb {
+  background: var(--ew-text-muted);
+  border-radius: 2px;
+}
+
+/* Waypoint Card */
+.ew-waypoint-card {
+  display: flex;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 12px;
+  margin-bottom: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ew-radius-sm);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--ew-font);
+  color: var(--ew-text-primary);
+  transition: var(--ew-transition);
+}
+
+.ew-waypoint-card:hover {
+  background: var(--ew-bg-glass-hover);
+  border-color: var(--ew-border);
+}
+
+.ew-waypoint-card.active {
+  background: rgba(0, 255, 204, 0.08);
+  border-color: var(--ew-border-active);
+  box-shadow: 0 0 20px rgba(0, 255, 204, 0.1);
+}
+
+.ew-waypoint-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 32px;
+}
+
+.ew-waypoint-number {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 50%;
+  background: var(--ew-bg-dark);
+  border: 2px solid var(--ew-text-muted);
+  color: var(--ew-text-secondary);
+  transition: var(--ew-transition);
+  flex-shrink: 0;
+}
+
+.ew-waypoint-card.active .ew-waypoint-number {
+  background: var(--ew-accent);
+  border-color: var(--ew-accent);
+  color: #000;
+  box-shadow: 0 0 12px var(--ew-accent-glow);
+}
+
+.ew-waypoint-connector {
+  width: 2px;
+  flex: 1;
+  min-height: 20px;
+  margin-top: 6px;
+  background: linear-gradient(180deg, var(--ew-text-muted) 0%, transparent 100%);
+}
+
+.ew-waypoint-card.active .ew-waypoint-connector {
+  background: linear-gradient(180deg, var(--ew-accent) 0%, transparent 100%);
+}
+
+.ew-waypoint-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.ew-waypoint-name {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--ew-text-primary);
+}
+
+.ew-waypoint-card.active .ew-waypoint-name {
+  color: var(--ew-accent);
+}
+
+.ew-waypoint-desc {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ew-text-secondary);
+  margin-bottom: 8px;
+}
+
+.ew-waypoint-accommodation {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--ew-text-muted);
+}
+
+.ew-accommodation-icon {
+  font-size: 13px;
+}
+
+/* Marker Styles - Ground-Anchored Node Pin */
+.ew-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transform: translateY(0);
+}
+
+.ew-marker-label {
+  margin-bottom: 6px;
+  padding: 4px 10px;
+  background: rgba(10, 10, 15, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ew-text-primary);
+  white-space: nowrap;
+  font-family: var(--ew-font);
+  border: 1px solid var(--ew-border);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+}
+
+.ew-marker-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--ew-accent);
+  border: 3px solid #000000;
+  box-shadow: 0 0 20px var(--ew-accent-glow), 0 0 6px var(--ew-accent);
+  animation: ew-pulse 2.5s ease-in-out infinite;
+  position: relative;
+}
+
+.ew-marker-dot::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 6px;
+  background: #000000;
+}
+
+@keyframes ew-pulse {
+  0%, 100% {
+    box-shadow: 0 0 16px var(--ew-accent-glow), 0 0 4px var(--ew-accent);
+  }
+  50% {
+    box-shadow: 0 0 28px var(--ew-accent-glow), 0 0 8px var(--ew-accent);
+  }
+}
+
+/* ==========================================================================
+   360° Street View SVG Teardrop Location Drop Pins Along Route
+   ========================================================================== */
+.ew-sv-dot {
+  cursor: pointer;
+  z-index: 99;
+  pointer-events: auto;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+              filter 0.2s ease;
+  filter: drop-shadow(0 0 8px rgba(0, 255, 204, 0.6));
+  position: relative;
+}
+
+.ew-sv-dot:hover {
+  transform: scale(1.35) translateY(-3px);
+  filter: drop-shadow(0 0 18px rgba(0, 255, 204, 1));
+}
+
+/* Teardrop pin shape — pure CSS, no emoji */
+.ew-sv-dot-icon {
+  width: 32px;
+  height: 44px;
+  display: block;
+  position: relative;
+  pointer-events: auto;
+  font-size: 0; /* Hide any text/emoji fallback */
+  overflow: visible;
+}
+
+/* The teardrop body */
+.ew-sv-dot-icon::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 32px;
+  height: 44px;
+  background: var(--ew-accent);
+  clip-path: path('M16 0C7.2 0 0 7.2 0 16c0 11.2 16 28 16 28s16-16.8 16-28C32 7.2 24.8 0 16 0z');
+}
+
+/* White inner circle */
+.ew-sv-dot-icon::after {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ffffff;
+  z-index: 1;
+}
+
+/* Pulsing ground ring below pin */
+.ew-sv-dot::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(0, 255, 204, 0.3);
+  animation: ew-pin-ring 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes ew-pin-ring {
+  0%, 100% {
+    transform: translateX(-50%) scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateX(-50%) scale(2.5);
+    opacity: 0;
+  }
+}
+
+/* ==========================================================================
+   📍 View 360° Street View — Sidebar Card Button
+   ========================================================================== */
+.ew-sv-card-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 7px 14px;
+  border-radius: 18px;
+  border: 1px solid var(--ew-accent);
+  background: rgba(0, 255, 204, 0.08);
+  color: var(--ew-accent);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--ew-transition);
+  letter-spacing: 0.3px;
+}
+
+.ew-sv-card-btn:hover {
+  background: rgba(0, 255, 204, 0.2);
+  box-shadow: 0 0 16px var(--ew-accent-glow);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   360° Street View & Panorama Viewer Modal
+   ========================================================================== */
+.ew-streetview-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: ew-fade-in 0.25s ease-out;
+}
+
+.ew-streetview-modal {
+  width: 100%;
+  max-width: 1200px;
+  height: 90vh;
+  max-height: 900px;
+  background: var(--ew-bg-dark);
+  border: 1px solid var(--ew-border-active);
+  border-radius: var(--ew-radius);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9), 0 0 40px var(--ew-accent-glow);
+}
+
+.ew-streetview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: var(--ew-bg-glass);
+  border-bottom: 1px solid var(--ew-border);
+}
+
+.ew-streetview-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ew-streetview-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--ew-accent);
+}
+
+.ew-streetview-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ew-text-primary);
+  margin: 0;
+}
+
+.ew-streetview-coords {
+  font-size: 12px;
+  color: var(--ew-text-secondary);
+}
+
+.ew-streetview-close-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--ew-border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ew-text-primary);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--ew-transition);
+}
+
+.ew-streetview-close-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--ew-accent);
+  color: var(--ew-accent);
+}
+
+.ew-streetview-body {
+  flex: 1;
+  width: 100%;
+  background: #000;
+  position: relative;
+}
+
+.ew-streetview-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  background: var(--ew-bg-glass);
+  border-top: 1px solid var(--ew-border);
+}
+
+.ew-streetview-tip {
+  font-size: 13px;
+  color: var(--ew-text-secondary);
+}
+
+.ew-streetview-done-btn {
+  padding: 8px 20px;
+  border-radius: 20px;
+  background: var(--ew-accent);
+  color: #000;
+  font-size: 13px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: var(--ew-transition);
+  box-shadow: 0 0 16px var(--ew-accent-glow);
+}
+
+.ew-streetview-done-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 24px var(--ew-accent-glow);
+}
+
+@keyframes ew-fade-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+@media (max-width: 768px) {
+  .ew-sidebar {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 45%;
+    border-radius: var(--ew-radius) var(--ew-radius) 0 0;
+  }
+
+  .ew-zoom-controls {
+    right: 16px;
+    top: 140px;
+  }
+
+  .ew-control-bar {
+    padding: 12px 16px;
+  }
+
+  .ew-streetview-modal {
+    max-width: 100%;
+    height: 95vh;
+    max-height: none;
+    border-radius: 0;
+  }
+}
