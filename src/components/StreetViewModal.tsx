@@ -255,7 +255,7 @@ export const StreetViewModal: React.FC = () => {
               height="100%"
               style={{ border: 0 }}
               allowFullScreen
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; device-orientation"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               referrerPolicy="no-referrer-when-downgrade"
             />
           ) : viewMode === 'streetview' && panoStatus === 'loading' ? (
@@ -283,7 +283,7 @@ export const StreetViewModal: React.FC = () => {
               height="100%"
               style={{ border: 0 }}
               allowFullScreen
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; device-orientation"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
             />
