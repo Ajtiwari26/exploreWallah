@@ -1,57 +1,62 @@
-/**
- * ExploreWallah - Journey State Store (Zustand)
- * 
- * Manages package catalog selection, active route geometry (with caching),
- * snapped waypoints, continuous scroll-driven tour progress, map engine, and camera state.
- */
-
 import { create } from 'zustand';
 import type { CameraState, MapEngine, RouteData } from '../types';
 import { allPackages } from '../data/packages';
 import { fetchRealRoadRoute, snapWaypointsToRoute } from '../utils/routeFetcher';
 import { generateTourPathData, type TourPathData } from '../utils/cameraPath';
 
+export type ViewMode = 'overview' | 'focused-journey';
+
 interface JourneyState {
-  // Available packages list
   packages: Omit<RouteData, 'route_geometry'>[];
   selectedPackageSlug: string;
   selectPackage: (slug: string) => Promise<void>;
 
-  // Current active route data
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+
+  selectedState: string;
+  setSelectedState: (state: string) => void;
+
+  selectedSeason: string;
+  setSelectedSeason: (season: string) => void;
+
+  selectedDifficulty: string;
+  setSelectedDifficulty: (difficulty: string) => void;
+
+  selectedCategory: string;
+  setSelectedCategory: (category: string) => void;
+
+  resetFilters: () => void;
+
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
+
   routeData: RouteData | null;
   isLoadingRoute: boolean;
 
-  // Pre-computed smoothed camera path for scroll-driven tour tracing
   tourPathData: TourPathData | null;
 
-  // Tour state: whether the user has started scrolling the tour
   tourStarted: boolean;
   setTourStarted: (started: boolean) => void;
 
-  // Active waypoint tracking (auto-updated from tour progress)
   activeWaypointIndex: number;
   setActiveWaypointIndex: (index: number) => void;
 
-  // Continuous tour progress between 0.0 (start) and 1.0 (end)
   tourProgress: number;
   setTourProgress: (progress: number) => void;
 
-  // Map engine toggle (mapbox or google)
   mapEngine: MapEngine;
   setMapEngine: (engine: MapEngine) => void;
 
-  // Dynamic zoom offset driven by + / - buttons
   userZoomOffset: number;
   zoomIn: () => void;
   zoomOut: () => void;
   resetZoom: () => void;
 
-  // 360° Street View / Panorama Modal state
-  activeStreetView: { coords: [number, number]; title: string } | null;
-  openStreetView: (coords: [number, number], title: string) => void;
+  activeStreetView: { coords: [number, number]; title: string; photoSphereUrl?: string } | null;
+  openStreetView: (coords: [number, number], title: string, photoSphereUrl?: string) => void;
   closeStreetView: () => void;
 
-  // Camera state
   cameraState: CameraState;
   setCameraState: (state: CameraState) => void;
 }
@@ -59,6 +64,33 @@ interface JourneyState {
 export const useJourneyStore = create<JourneyState>((set) => ({
   packages: allPackages,
   selectedPackageSlug: allPackages[0].slug,
+
+  searchQuery: '',
+  setSearchQuery: (query: string) => set({ searchQuery: query }),
+
+  selectedState: 'All',
+  setSelectedState: (state: string) => set({ selectedState: state }),
+
+  selectedSeason: 'All',
+  setSelectedSeason: (season: string) => set({ selectedSeason: season }),
+
+  selectedDifficulty: 'All',
+  setSelectedDifficulty: (difficulty: string) => set({ selectedDifficulty: difficulty }),
+
+  selectedCategory: 'All',
+  setSelectedCategory: (category: string) => set({ selectedCategory: category }),
+
+  resetFilters: () =>
+    set({
+      searchQuery: '',
+      selectedState: 'All',
+      selectedSeason: 'All',
+      selectedDifficulty: 'All',
+      selectedCategory: 'All',
+    }),
+
+  viewMode: 'overview',
+  setViewMode: (mode: ViewMode) => set({ viewMode: mode }),
 
   routeData: null,
   isLoadingRoute: false,
@@ -78,12 +110,11 @@ export const useJourneyStore = create<JourneyState>((set) => ({
       tourProgress: 0,
       tourStarted: false,
       tourPathData: null,
+      viewMode: 'focused-journey',
     });
 
-    // Fetch or read from cache real road/trail route from OSRM routing engine
     const realGeometry = await fetchRealRoadRoute(pkgInfo.slug, pkgInfo.waypoints);
 
-    // Mathematically snap all waypoint marker pins to sit 100% directly ON the route line
     const snappedWaypoints = snapWaypointsToRoute(realGeometry, pkgInfo.waypoints);
 
     const fullRouteData: RouteData = {
@@ -92,7 +123,6 @@ export const useJourneyStore = create<JourneyState>((set) => ({
       waypoints: snappedWaypoints,
     };
 
-    // Pre-compute the smoothed Bezier camera path for scroll-driven tour tracing
     const tourPath = generateTourPathData(realGeometry, snappedWaypoints);
 
     const firstWp = snappedWaypoints[0];
@@ -121,12 +151,13 @@ export const useJourneyStore = create<JourneyState>((set) => ({
   setMapEngine: (engine: MapEngine) => set({ mapEngine: engine }),
 
   userZoomOffset: 0,
-  zoomIn: () => set((state) => ({ userZoomOffset: Math.min(state.userZoomOffset + 1.0, 3.5) })),
-  zoomOut: () => set((state) => ({ userZoomOffset: Math.max(state.userZoomOffset - 1.0, -4.5) })),
+  zoomIn: () => set((state) => ({ userZoomOffset: Math.min(state.userZoomOffset + 0.75, 2.5) })),
+  zoomOut: () => set((state) => ({ userZoomOffset: Math.max(state.userZoomOffset - 0.75, -4.5) })),
   resetZoom: () => set({ userZoomOffset: 0 }),
 
   activeStreetView: null,
-  openStreetView: (coords: [number, number], title: string) => set({ activeStreetView: { coords, title } }),
+  openStreetView: (coords: [number, number], title: string, photoSphereUrl?: string) =>
+    set({ activeStreetView: { coords, title, photoSphereUrl } }),
   closeStreetView: () => set({ activeStreetView: null }),
 
   cameraState: {

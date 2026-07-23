@@ -1,8 +1,8 @@
-/**
- * ExploreWallah - Real Road & Trail Route Utility with Caching, Slicing & Node Snapping
- */
-
 import type { Waypoint } from '../types';
+import { getPrebundledRoute } from '../data/cachedRoutes';
+import lineSliceAlong from '@turf/line-slice-along';
+import length from '@turf/length';
+import { lineString } from '@turf/helpers';
 
 const memoryRouteCache = new Map<string, GeoJSON.LineString>();
 
@@ -13,16 +13,14 @@ export async function fetchRealRoadRoute(
   if (!waypoints || waypoints.length < 2) {
     return {
       type: 'LineString',
-      coordinates: waypoints.map((w) => w.coordinates),
+      coordinates: waypoints ? waypoints.map((w) => w.coordinates) : [],
     };
   }
 
-  // 1. Memory cache
   if (memoryRouteCache.has(packageSlug)) {
     return memoryRouteCache.get(packageSlug)!;
   }
 
-  // 2. LocalStorage cache (v3 for road + foot trek routes)
   const storageKey = `ew_route_cache_v3_${packageSlug}`;
   const cachedData = localStorage.getItem(storageKey);
   if (cachedData) {
@@ -35,12 +33,16 @@ export async function fetchRealRoadRoute(
     }
   }
 
-  let roadCoords: [number, number][] = [];
-  let trekCoords: [number, number][] = [];
+  const prebundled = getPrebundledRoute(packageSlug);
+  if (prebundled) {
+    memoryRouteCache.set(packageSlug, prebundled);
+    fetchOSRMRouteInBackground(packageSlug, waypoints, storageKey);
+    return prebundled;
+  }
 
-  // Segment 1: Road Drive from Starting Hub to Base Camp (Waypoints 0 to 1)
   const roadWaypoints = waypoints.slice(0, 2);
   const roadCoordStr = roadWaypoints.map((w) => `${w.coordinates[0]},${w.coordinates[1]}`).join(';');
+  let roadCoords: [number, number][] = [];
 
   try {
     const roadRes = await fetch(
@@ -53,17 +55,16 @@ export async function fetchRealRoadRoute(
       }
     }
   } catch {
-    // Fallback road
-    roadCoords = denseInterpolate(roadWaypoints[0].coordinates, roadWaypoints[1].coordinates, 40);
+    // Ignore
   }
 
   if (roadCoords.length === 0) {
-    roadCoords = denseInterpolate(roadWaypoints[0].coordinates, roadWaypoints[1].coordinates, 40);
+    roadCoords = denseInterpolate(waypoints[0].coordinates, waypoints[1].coordinates, 45);
   }
 
-  // Segment 2: Mountain Foot Trek Trail from Base Camp to Summit / Alpine Lakes (Waypoints 1 to end)
   const trekWaypoints = waypoints.slice(1);
   const trekCoordStr = trekWaypoints.map((w) => `${w.coordinates[0]},${w.coordinates[1]}`).join(';');
+  let trekCoords: [number, number][] = [];
 
   try {
     const trekRes = await fetch(
@@ -76,18 +77,17 @@ export async function fetchRealRoadRoute(
       }
     }
   } catch {
-    // Fallback foot trail
+    // Ignore
   }
 
   if (trekCoords.length === 0) {
-    // Dense trail interpolation between mountain waypoints
-    for (let i = 0; i < trekWaypoints.length - 1; i++) {
-      const seg = denseInterpolate(trekWaypoints[i].coordinates, trekWaypoints[i + 1].coordinates, 60);
+    trekCoords = [];
+    for (let i = 1; i < waypoints.length - 1; i++) {
+      const seg = denseInterpolate(waypoints[i].coordinates, waypoints[i + 1].coordinates, 65);
       trekCoords.push(...seg);
     }
   }
 
-  // Combine Road + Foot Trek coordinates
   const combinedCoords = [...roadCoords, ...trekCoords];
 
   const fullGeo: GeoJSON.LineString = {
@@ -105,7 +105,7 @@ export async function fetchRealRoadRoute(
   return fullGeo;
 }
 
-function denseInterpolate(start: [number, number], end: [number, number], steps: number): [number, number][] {
+export function denseInterpolate(start: [number, number], end: [number, number], steps: number): [number, number][] {
   const result: [number, number][] = [];
   for (let s = 0; s <= steps; s++) {
     const t = s / steps;
@@ -116,9 +116,6 @@ function denseInterpolate(start: [number, number], end: [number, number], steps:
   return result;
 }
 
-/**
- * Snaps waypoints to sit 100% directly ON the route LineString geometry.
- */
 export function snapWaypointsToRoute(
   fullRoute: GeoJSON.LineString,
   waypoints: Waypoint[]
@@ -147,13 +144,6 @@ export function snapWaypointsToRoute(
   });
 }
 
-/**
- * Returns sliced geometry from start of fullRoute up to a continuous progress (0.0 to 1.0).
- */
-import lineSliceAlong from '@turf/line-slice-along';
-import length from '@turf/length';
-import { lineString } from '@turf/helpers';
-
 export function getSubRouteUpToProgress(
   fullRoute: GeoJSON.LineString,
   progress: number
@@ -169,55 +159,19 @@ export function getSubRouteUpToProgress(
 
   try {
     const sliced = lineSliceAlong(fullLine, 0, stopDist, { units: 'kilometers' });
-    return sliced.geometry;
+    return sliced.geometry as GeoJSON.LineString;
   } catch {
-    const endIdx = Math.max(2, Math.floor(p * fullRoute.coordinates.length));
+    const splitIndex = Math.floor(p * fullRoute.coordinates.length);
     return {
       type: 'LineString',
-      coordinates: fullRoute.coordinates.slice(0, endIdx),
+      coordinates: fullRoute.coordinates.slice(0, Math.max(2, splitIndex)),
     };
   }
 }
 
-/**
- * Returns sliced geometry from Waypoint 0 up to activeWaypointIndex.
- */
-export function getSubRouteUpToWaypoint(
-  fullRoute: GeoJSON.LineString,
-  waypoints: Waypoint[],
-  activeWaypointIndex: number
-): GeoJSON.LineString {
-  if (!fullRoute?.coordinates || fullRoute.coordinates.length === 0) {
-    return fullRoute;
-  }
+export function computeBoundsFromWaypoints(waypoints: Waypoint[]): [number, number, number, number] {
+  if (!waypoints || waypoints.length === 0) return [72, 28, 85, 36];
 
-  const targetWaypoint = waypoints[Math.min(activeWaypointIndex, waypoints.length - 1)];
-  const targetCoords = targetWaypoint.coordinates;
-
-  let closestIndex = 0;
-  let minDistance = Infinity;
-
-  for (let i = 0; i < fullRoute.coordinates.length; i++) {
-    const pt = fullRoute.coordinates[i];
-    const dist = Math.hypot(pt[0] - targetCoords[0], pt[1] - targetCoords[1]);
-    if (dist < minDistance) {
-      minDistance = dist;
-      closestIndex = i;
-    }
-  }
-
-  const slicedCoords = fullRoute.coordinates.slice(0, Math.max(2, closestIndex + 1));
-
-  return {
-    type: 'LineString',
-    coordinates: slicedCoords,
-  };
-}
-
-/**
- * Computes geographic bounding box for waypoints with padding.
- */
-export function calculateGeographicBounds(waypoints: Waypoint[]): [number, number, number, number] {
   let minLng = Infinity;
   let minLat = Infinity;
   let maxLng = -Infinity;
@@ -232,4 +186,54 @@ export function calculateGeographicBounds(waypoints: Waypoint[]): [number, numbe
 
   const pad = 0.45;
   return [minLng - pad, minLat - pad, maxLng + pad, maxLat + pad];
+}
+
+async function fetchOSRMRouteInBackground(
+  packageSlug: string,
+  waypoints: Waypoint[],
+  storageKey: string
+) {
+  try {
+    const roadWaypoints = waypoints.slice(0, 2);
+    const roadCoordStr = roadWaypoints.map((w) => `${w.coordinates[0]},${w.coordinates[1]}`).join(';');
+    let roadCoords: [number, number][] = [];
+
+    const roadRes = await fetch(
+      `https://router.project-osrm.org/route/v1/driving/${roadCoordStr}?overview=full&geometries=geojson`
+    );
+    if (roadRes.ok) {
+      const roadData = await roadRes.json();
+      if (roadData.routes && roadData.routes[0]?.geometry?.coordinates) {
+        roadCoords = roadData.routes[0].geometry.coordinates;
+      }
+    }
+
+    if (roadCoords.length === 0) return;
+
+    const trekWaypoints = waypoints.slice(1);
+    const trekCoordStr = trekWaypoints.map((w) => `${w.coordinates[0]},${w.coordinates[1]}`).join(';');
+    let trekCoords: [number, number][] = [];
+
+    const trekRes = await fetch(
+      `https://router.project-osrm.org/route/v1/foot/${trekCoordStr}?overview=full&geometries=geojson`
+    );
+    if (trekRes.ok) {
+      const trekData = await trekRes.json();
+      if (trekData.routes && trekData.routes[0]?.geometry?.coordinates) {
+        trekCoords = trekData.routes[0].geometry.coordinates;
+      }
+    }
+
+    const combinedCoords = [...roadCoords, ...trekCoords];
+    if (combinedCoords.length > 0) {
+      const liveGeo: GeoJSON.LineString = {
+        type: 'LineString',
+        coordinates: combinedCoords,
+      };
+      memoryRouteCache.set(packageSlug, liveGeo);
+      localStorage.setItem(storageKey, JSON.stringify(liveGeo));
+    }
+  } catch {
+    // Ignore
+  }
 }
