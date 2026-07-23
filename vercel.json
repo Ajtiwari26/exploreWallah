@@ -5,7 +5,7 @@
       "headers": [
         {
           "key": "Permissions-Policy",
-          "value": "accelerometer=(self \"https://maps.google.com\"), gyroscope=(self \"https://maps.google.com\")"
+          "value": "accelerometer=*, gyroscope=*"
         }
       ]
     }
