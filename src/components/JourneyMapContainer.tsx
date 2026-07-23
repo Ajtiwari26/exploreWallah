@@ -1,38 +1,21 @@
-/**
- * ExploreWallah - Journey Map Container (Parent Coordinator)
- * 
- * Features:
- * 1. Non-passive native wheel listener ({ passive: false }) to 100% BLOCK trackpad zoom
- * 2. Trackpad scroll drives CONTINUOUS tour progress (0.0 → 1.0) along the smoothed camera path
- * 3. Velocity Clamping: smooth progress accumulation (SCROLL_SENSITIVITY = 0.0003)
- * 4. Floating Zoom Controls (+ / -) for explicit manual zooming
- * 5. Package Scroller Bar for switching treks
- * 6. Dual Map Engine Toggle (MapLibre Satellite 3D ↔ Google 3D Maps)
- * 7. Waypoint Itinerary Sidebar (auto-highlights based on progress)
- * 8. Tour progress bar
- */
-
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { gsap } from 'gsap';
 import { useJourneyStore } from '../store/journeyStore';
 import { MapLibreRenderer } from './MapboxRenderer';
 import { Google3DMapRenderer } from './Google3DMapRenderer';
+import logoSvg from '../assets/logo.svg';
 import {
   getCameraFrameAtProgress,
   getActiveWaypointFromProgress,
-  TOUR_ZOOM,
-  TOUR_PITCH,
 } from '../utils/cameraPath';
-import type { MapEngine } from '../types';
-
-/** Clamped scroll sensitivity (0.0003 per deltaY pixel) — smooth, human-paced tour tracing */
-const CLAMPED_SCROLL_SENSITIVITY = 0.0003;
+import type { MapEngine, Waypoint } from '../types';
 
 export const JourneyMapContainer: React.FC = () => {
   const {
     packages,
     selectedPackageSlug,
     selectPackage,
+    setViewMode,
     routeData,
     isLoadingRoute,
     tourPathData,
@@ -49,143 +32,201 @@ export const JourneyMapContainer: React.FC = () => {
   } = useJourneyStore();
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const tourProgressRef = useRef(tourProgress);
-  const tourStartedRef = useRef(tourStarted);
   const isStartAnimating = useRef(false);
 
-  // Keep refs in sync with state
-  useEffect(() => {
-    tourProgressRef.current = tourProgress;
-  }, [tourProgress]);
-
-  useEffect(() => {
-    tourStartedRef.current = tourStarted;
-  }, [tourStarted]);
-
-  // Sync active waypoint index in sidebar based on current tourProgress
-  useEffect(() => {
-    if (!tourPathData) return;
-    const activeIdx = getActiveWaypointFromProgress(tourPathData, tourProgress);
-    if (activeIdx !== activeWaypointIndex) {
-      setActiveWaypointIndex(activeIdx);
-    }
-  }, [tourProgress, tourPathData, activeWaypointIndex, setActiveWaypointIndex]);
-
-  // ─── Tour Start Animation: zoom from overview (10) to tour level (14.5) ─────
   const startTour = useCallback(() => {
-    if (isStartAnimating.current || !tourPathData) return;
+    if (!tourPathData || tourStarted || isStartAnimating.current) return;
+
     isStartAnimating.current = true;
 
-    // Get the first point of the camera path for the zoom-in target
-    const firstFrame = getCameraFrameAtProgress(tourPathData, 0, cameraState.bearing);
+    // Calculate dynamic flight path duration based on total route distance
+    const routeDistance = tourPathData.totalDistance;
+    const flightDuration = Math.max(2.5, Math.min(6.5, routeDistance / 45));
 
-    // Animate from current overview zoom to tour zoom
-    const proxy = { zoom: cameraState.zoom, pitch: cameraState.pitch };
-    gsap.to(proxy, {
-      zoom: TOUR_ZOOM,
-      pitch: TOUR_PITCH,
-      duration: 1.8,
+    // Fly-in Camera Intro swoop
+    const currentCamera = { ...cameraState };
+
+    gsap.to(currentCamera, {
+      lng: tourPathData.points[0].coords[0],
+      lat: tourPathData.points[0].coords[1],
+      zoom: 15.0,
+      pitch: 62,
+      bearing: -15,
+      duration: flightDuration,
       ease: 'power2.inOut',
       onUpdate: () => {
-        setCameraState({
-          lng: firstFrame.center[0],
-          lat: firstFrame.center[1],
-          zoom: proxy.zoom,
-          pitch: proxy.pitch,
-          bearing: firstFrame.bearing,
-        });
+        setCameraState({ ...currentCamera });
       },
       onComplete: () => {
-        isStartAnimating.current = false;
         setTourStarted(true);
+        setTourProgress(0);
+        isStartAnimating.current = false;
       },
     });
-  }, [tourPathData, cameraState, setCameraState, setTourStarted]);
+  }, [tourPathData, tourStarted, cameraState, setCameraState, setTourStarted, setTourProgress]);
 
-  // Auto-enable tour tracing when tourPathData is ready (pre-warmed 3D satellite view)
+  // Scroll Handler for 3D Tour Path Animation Tracing
   useEffect(() => {
-    if (tourPathData) {
-      setTourStarted(true);
-    }
-  }, [tourPathData, setTourStarted]);
+    const handleScroll = (e: WheelEvent) => {
+      // Ignore if Street View Modal is active
+      if (useJourneyStore.getState().activeStreetView) return;
 
-  // ─── Native NON-PASSIVE Wheel Listener: drives continuous tour progress ─────
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+      if (!tourPathData) return;
 
-    const handleNativeWheel = (e: WheelEvent) => {
-      const targetEl = e.target as HTMLElement | null;
-
-      // Allow horizontal scroll on tour selection strip without triggering red path journey scroll
-      const packageScroller = targetEl?.closest('.ew-package-scroller') as HTMLElement | null;
-      const topBar = targetEl?.closest('.ew-top-bar') as HTMLElement | null;
-
-      if (packageScroller || topBar) {
-        if (packageScroller) {
-          packageScroller.scrollLeft += e.deltaY || e.deltaX;
+      if (!tourStarted) {
+        if (e.deltaY > 5) {
+          startTour();
         }
         return;
       }
 
-      // Ignore scroll inside sidebar list so user can scroll sidebar text
-      if (targetEl?.closest('.ew-waypoint-list')) {
+      e.preventDefault();
+
+      // Scroll speed dampening factor
+      const speedDampener = 0.00035;
+      const nextProgress = Math.max(
+        0,
+        Math.min(1, tourProgress + e.deltaY * speedDampener)
+      );
+
+      setTourProgress(nextProgress);
+
+      // Auto-update active waypoint node selection as hiker scrolls past its threshold
+      const currentActiveWp = getActiveWaypointFromProgress(
+        tourPathData,
+        nextProgress
+      );
+      if (currentActiveWp !== null && currentActiveWp !== activeWaypointIndex) {
+        setActiveWaypointIndex(currentActiveWp);
+      }
+    };
+
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener('wheel', handleScroll, { passive: false });
+    }
+
+    return () => {
+      if (container) {
+        container.removeEventListener('wheel', handleScroll);
+      }
+    };
+  }, [
+    tourPathData,
+    tourStarted,
+    tourProgress,
+    activeWaypointIndex,
+    startTour,
+    setTourProgress,
+    setActiveWaypointIndex,
+  ]);
+
+  // Touch Swipe / Drag support for Mobile 3D Journey Tracing
+  useEffect(() => {
+    let touchStartY = 0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (useJourneyStore.getState().activeStreetView) return;
+      touchStartY = e.touches[0].clientY;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (useJourneyStore.getState().activeStreetView) return;
+      if (!tourPathData) return;
+
+      const touchY = e.touches[0].clientY;
+      const deltaY = touchStartY - touchY;
+      touchStartY = touchY;
+
+      if (!tourStarted) {
+        if (deltaY > 5) {
+          startTour();
+        }
         return;
       }
 
-      // CRITICAL: Block browser & map trackpad zoom for journey map progress
       e.preventDefault();
-      e.stopPropagation();
 
-      if (!tourPathData) return;
+      const speedDampener = 0.0015;
+      const nextProgress = Math.max(
+        0,
+        Math.min(1, tourProgress + deltaY * speedDampener)
+      );
 
-      // Accumulate continuous progress with velocity clamping
-      // Clamp wheel delta to max 40 to prevent sudden tile demand spikes
-      const clampedDelta = Math.sign(e.deltaY) * Math.min(Math.abs(e.deltaY), 40);
-      const deltaProgress = clampedDelta * CLAMPED_SCROLL_SENSITIVITY;
+      setTourProgress(nextProgress);
 
-      const newProgress = Math.max(0, Math.min(1, tourProgressRef.current + deltaProgress));
-      tourProgressRef.current = newProgress;
-      setTourProgress(newProgress);
+      const currentActiveWp = getActiveWaypointFromProgress(
+        tourPathData,
+        nextProgress
+      );
+      if (currentActiveWp !== null && currentActiveWp !== activeWaypointIndex) {
+        setActiveWaypointIndex(currentActiveWp);
+      }
     };
 
-    // Attach non-passive wheel event listener
-    container.addEventListener('wheel', handleNativeWheel, { passive: false });
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener('touchstart', handleTouchStart, { passive: true });
+      container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    }
 
     return () => {
-      container.removeEventListener('wheel', handleNativeWheel);
+      if (container) {
+        container.removeEventListener('touchstart', handleTouchStart);
+        container.removeEventListener('touchmove', handleTouchMove);
+      }
     };
-  }, [tourPathData, startTour, setTourProgress]);
+  }, [
+    tourPathData,
+    tourStarted,
+    tourProgress,
+    activeWaypointIndex,
+    startTour,
+    setTourProgress,
+    setActiveWaypointIndex,
+  ]);
 
-  // ─── Waypoint Click: jump to that waypoint's progress position ──────────────
+  // Waypoint Card click handler — flies camera to clicked waypoint node
   const handleWaypointClick = useCallback(
     (index: number) => {
-      if (!tourPathData) return;
+      if (!tourPathData || !routeData) return;
 
-      const targetProgress = tourPathData.waypointProgressMap[index] ?? 0;
-
-      if (!tourStartedRef.current) {
-        tourProgressRef.current = targetProgress;
-        setTourProgress(targetProgress);
-        startTour();
-      } else {
-        // Smoothly animate progress to the clicked waypoint
-        const proxy = { p: tourProgressRef.current };
-        gsap.to(proxy, {
-          p: targetProgress,
-          duration: 1.5,
-          ease: 'power2.inOut',
-          onUpdate: () => {
-            tourProgressRef.current = proxy.p;
-            setTourProgress(proxy.p);
-          },
-        });
+      // Force tour to started state
+      if (!tourStarted) {
+        setTourStarted(true);
       }
+
+      // Map indices
+      const wp = routeData.waypoints[index];
+      const wpPathNode = tourPathData.waypoints.find((w) => w.id === wp.id);
+      if (!wpPathNode) return;
+
+      const targetP = wpPathNode.ratio;
+
+      // Run GSAP transition to target waypoint progress
+      const progressObj = { p: tourProgress };
+      gsap.to(progressObj, {
+        p: targetP,
+        duration: 1.8,
+        ease: 'power2.out',
+        onUpdate: () => {
+          setTourProgress(progressObj.p);
+          const currentActiveWp = getActiveWaypointFromProgress(
+            tourPathData,
+            progressObj.p
+          );
+          if (currentActiveWp !== null) {
+            setActiveWaypointIndex(currentActiveWp);
+          }
+        },
+      });
     },
-    [tourPathData, startTour, setTourProgress]
+    [tourPathData, routeData, tourStarted, tourProgress, setTourStarted, setTourProgress, setActiveWaypointIndex]
   );
 
   const { zoomIn, zoomOut } = useJourneyStore();
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
 
   // ─── Zoom In / Out Handlers ─────────────────────────────────────────────────
   const handleZoomIn = () => {
@@ -256,33 +297,53 @@ export const JourneyMapContainer: React.FC = () => {
           <div className="ew-trail-legend">
             <span className="ew-legend-item road">🔴 🚗 Road Drive</span>
             <span className="ew-legend-divider">|</span>
-            <span className="ew-legend-item trek">👣 Mountain Trek</span>
+            <span className="ew-legend-item trek">🥾 Mountain Trek</span>
           </div>
         </div>
       )}
 
+      {/* Collapsed Top Header Floating Indicator */}
+      {isHeaderCollapsed && (
+        <button
+          className="ew-header-expand-btn"
+          onClick={() => setIsHeaderCollapsed(false)}
+          title="Expand Top Controls"
+        >
+          📍 {routeData?.title || 'ExploreWallah 3D'} • Expand Controls ▼
+        </button>
+      )}
+
       {/* Top Header & Package Scroller Bar */}
-      <div className="ew-control-bar">
+      <div className={`ew-control-bar ${isHeaderCollapsed ? 'collapsed' : ''}`}>
         <div className="ew-top-row">
-          <div className="ew-logo">
-            <span className="ew-logo-icon">🏔️</span>
-            <span className="ew-logo-text">ExploreWallah</span>
+          <div className="ew-logo" onClick={() => setViewMode('overview')} style={{ cursor: 'pointer' }} title="Return to Overview">
+            <img src={logoSvg} alt="ExploreWallah Logo" className="ew-brand-logo-img sm" />
           </div>
 
-          <div className="ew-engine-toggle">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="ew-engine-toggle">
+              <button
+                className={`ew-engine-btn ${mapEngine === 'mapbox' ? 'active' : ''}`}
+                onClick={() => handleEngineSwitch('mapbox')}
+              >
+                <span className="ew-engine-icon">🛰️</span>
+                Satellite 3D
+              </button>
+              <button
+                className={`ew-engine-btn ${mapEngine === 'google' ? 'active' : ''}`}
+                onClick={() => handleEngineSwitch('google')}
+              >
+                <span className="ew-engine-icon">🌍</span>
+                Google 3D
+              </button>
+            </div>
+
             <button
-              className={`ew-engine-btn ${mapEngine === 'mapbox' ? 'active' : ''}`}
-              onClick={() => handleEngineSwitch('mapbox')}
+              className="ew-collapse-toggle-btn"
+              onClick={() => setIsHeaderCollapsed(true)}
+              title="Collapse Top Bar for Fullscreen 3D View"
             >
-              <span className="ew-engine-icon">🛰️</span>
-              Satellite 3D
-            </button>
-            <button
-              className={`ew-engine-btn ${mapEngine === 'google' ? 'active' : ''}`}
-              onClick={() => handleEngineSwitch('google')}
-            >
-              <span className="ew-engine-icon">🌍</span>
-              Google 3D
+              ▲ Hide Top Bar
             </button>
           </div>
         </div>
@@ -315,11 +376,31 @@ export const JourneyMapContainer: React.FC = () => {
         </button>
       </div>
 
+      {/* Collapsed Sidebar Edge Expand Trigger */}
+      {routeData && isSidebarCollapsed && (
+        <button
+          className="ew-sidebar-expand-btn"
+          onClick={() => setIsSidebarCollapsed(false)}
+          title="Expand Itinerary Sidebar"
+        >
+          ▶ Itinerary & Waypoints ({routeData.waypoints.length})
+        </button>
+      )}
+
       {/* Waypoint Itinerary Sidebar */}
       {routeData && (
-        <div className="ew-sidebar">
+        <div className={`ew-sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
           <div className="ew-sidebar-header">
-            <div className="ew-price-badge">{routeData.price}</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '8px' }}>
+              <div className="ew-price-badge">{routeData.price}</div>
+              <button
+                className="ew-collapse-toggle-btn sm"
+                onClick={() => setIsSidebarCollapsed(true)}
+                title="Collapse Sidebar for Fullscreen 3D View"
+              >
+                ◀ Collapse
+              </button>
+            </div>
             <h2 className="ew-trek-title">{routeData.title}</h2>
             <div className="ew-trek-meta">
               <span className="ew-tag">{routeData.duration}</span>

@@ -1,12 +1,3 @@
-/**
- * ExploreWallah - Google 3D Maps Photorealistic Renderer
- * 
- * Features:
- * 1. Photorealistic 3D buildings, trees, and terrain meshes via <gmp-map-3d>
- * 2. Ultra-Bold Trail Rendering (width 10px neon cyan)
- * 3. Progressive trail tracing (traces Node 1 → Node 2 as you click/scroll)
- */
-
 import React, { useEffect, useRef, useCallback } from 'react';
 import type { MapRendererProps } from '../types';
 import { getSubRouteUpToProgress } from '../utils/routeFetcher';
@@ -75,7 +66,9 @@ export const Google3DMapRenderer: React.FC<MapRendererProps> = ({
         if (!container) return;
 
         const mapEl = document.createElement('gmp-map-3d');
+        mapEl.setAttribute('mode', 'SATELLITE');
         mapEl.setAttribute('default-labels-disabled', '');
+        mapEl.setAttribute('default-ui-hidden', '');
         mapEl.style.width = '100%';
         mapEl.style.height = '100%';
 
@@ -105,9 +98,11 @@ export const Google3DMapRenderer: React.FC<MapRendererProps> = ({
 
     init();
 
+    const containerEl = containerRef.current;
+
     return () => {
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
+      if (containerEl) {
+        containerEl.innerHTML = '';
       }
       mapElementRef.current = null;
       polylineElementRef.current = null;
