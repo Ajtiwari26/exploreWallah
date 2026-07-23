@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <!-- Sky background / Outer Ring Glow -->
+  <defs>
+    <radialGradient id="skyGrad" cx="50%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#1e293b" stop-opacity="0" />
+      <stop offset="100%" stop-color="#0f172a" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="sunGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#F97316" />
+      <stop offset="100%" stop-color="#EA580C" />
+    </linearGradient>
+    <linearGradient id="peakGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+  </defs>
+
+  <!-- Sun setting behind peaks -->
+  <circle cx="50" cy="52" r="22" fill="url(#sunGrad)" />
+
+  <!-- Mountain Peaks (Back Range) -->
+  <polygon points="20,72 40,42 60,72" fill="#1e293b" opacity="0.6" />
+  <polygon points="50,72 68,48 86,72" fill="#1e293b" opacity="0.6" />
+
+  <!-- Main Snow-Capped Peak (Front Range) -->
+  <polygon points="28,72 52,32 76,72" fill="url(#peakGrad)" />
+  <!-- Snow Cap highlight -->
+  <polygon points="45,43 52,32 59,43 55,40 52,44 49,40" fill="#ffffff" />
+
+  <!-- Curving Valley River/Trail Curve -->
+  <path d="M52,72 C52,76 48,82 32,84 C16,86 12,92 10,95" fill="none" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" />
+
+  <!-- Swooshing Airplane Arch -->
+  <path d="M22,65 C26,50 44,28 66,28 C82,28 92,38 94,48" fill="none" stroke="#F97316" stroke-width="1.8" stroke-dasharray="3,3" stroke-linecap="round" />
+
+  <!-- Airplane Silhouette at the end of Swoosh -->
+  <g transform="translate(94, 48) rotate(45) scale(0.6)">
+    <path d="M0,-8 L2,-2 L8,-1 L2,1 L3,7 L0,5 L-3,7 L-2,1 L-8,-1 L-2,-2 Z" fill="#F97316" />
+  </g>
+
+  <!-- Highlight Location Pin -->
+  <g transform="translate(52, 28) scale(0.35)">
+    <!-- Pin Shape in Orange (#F97316) -->
+    <path d="M15 1C7.3 1 1 7.2 1 14.8 1 20.6 5.7 27.9 15 41 24.3 27.9 29 20.6 29 14.8 29 7.2 22.7 1 15 1z" fill="#F97316" stroke="#ffffff" stroke-width="1.5" />
+    <circle cx="15" cy="14.6" r="4.5" fill="#0f172a" />
+  </g>
+</svg>
