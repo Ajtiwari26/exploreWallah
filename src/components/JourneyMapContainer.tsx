@@ -5,10 +5,9 @@ import { MapLibreRenderer } from './MapboxRenderer';
 import { Google3DMapRenderer } from './Google3DMapRenderer';
 import logoSvg from '../assets/logo.svg';
 import {
-  getCameraFrameAtProgress,
   getActiveWaypointFromProgress,
 } from '../utils/cameraPath';
-import type { MapEngine, Waypoint } from '../types';
+import type { MapEngine } from '../types';
 
 export const JourneyMapContainer: React.FC = () => {
   const {
@@ -35,20 +34,21 @@ export const JourneyMapContainer: React.FC = () => {
   const isStartAnimating = useRef(false);
 
   const startTour = useCallback(() => {
-    if (!tourPathData || tourStarted || isStartAnimating.current) return;
+    if (!tourPathData || !routeData || tourStarted || isStartAnimating.current) return;
 
     isStartAnimating.current = true;
 
     // Calculate dynamic flight path duration based on total route distance
-    const routeDistance = tourPathData.totalDistance;
+    const routeDistance = tourPathData.totalLengthKm;
     const flightDuration = Math.max(2.5, Math.min(6.5, routeDistance / 45));
 
     // Fly-in Camera Intro swoop
     const currentCamera = { ...cameraState };
+    const startWp = routeData.waypoints[0];
 
     gsap.to(currentCamera, {
-      lng: tourPathData.points[0].coords[0],
-      lat: tourPathData.points[0].coords[1],
+      lng: startWp.coordinates[0],
+      lat: startWp.coordinates[1],
       zoom: 15.0,
       pitch: 62,
       bearing: -15,
@@ -197,11 +197,8 @@ export const JourneyMapContainer: React.FC = () => {
       }
 
       // Map indices
-      const wp = routeData.waypoints[index];
-      const wpPathNode = tourPathData.waypoints.find((w) => w.id === wp.id);
-      if (!wpPathNode) return;
-
-      const targetP = wpPathNode.ratio;
+      const targetP = tourPathData.waypointProgressMap[index];
+      if (targetP === undefined) return;
 
       // Run GSAP transition to target waypoint progress
       const progressObj = { p: tourProgress };

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import type { MapEngine, RouteData } from '../types';
+import React from 'react';
+import type { MapEngine } from '../types';
 import { useJourneyStore } from '../store/journeyStore';
 import logoSvg from '../assets/logo.svg';
 
