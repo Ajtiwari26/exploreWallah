@@ -55,26 +55,30 @@ export const Google3DMapRenderer: React.FC<MapRendererProps> = ({
     });
   }, []);
 
+  const initialCameraRef = useRef(cameraState);
+
   useEffect(() => {
     let cancelled = false;
+    const containerNode = containerRef.current;
 
     const initMap = async () => {
       try {
         await loadGoogleMapsAPI();
-        if (cancelled || !containerRef.current) return;
+        if (cancelled || !containerNode) return;
 
         const win = window as any;
         const { Map3DElement, Polyline3DElement } = win.google.maps.maps3d;
 
         if (mapElementRef.current) {
-          containerRef.current.innerHTML = '';
+          containerNode.innerHTML = '';
         }
 
+        const initialCam = initialCameraRef.current;
         const mapEl = new Map3DElement({
-          center: { lat: cameraState.lat, lng: cameraState.lng },
-          tilt: cameraState.pitch,
-          heading: cameraState.bearing,
-          range: Math.pow(2, 20 - cameraState.zoom) * 2,
+          center: { lat: initialCam.lat, lng: initialCam.lng },
+          tilt: initialCam.pitch,
+          heading: initialCam.bearing,
+          range: Math.pow(2, 20 - initialCam.zoom) * 2,
         });
 
         mapEl.style.width = '100%';
@@ -88,7 +92,7 @@ export const Google3DMapRenderer: React.FC<MapRendererProps> = ({
 
         mapEl.appendChild(polyline);
         polylineElementRef.current = polyline;
-        containerRef.current.appendChild(mapEl);
+        containerNode.appendChild(mapEl);
         mapElementRef.current = mapEl;
         isInitializedRef.current = true;
       } catch {
@@ -100,11 +104,12 @@ export const Google3DMapRenderer: React.FC<MapRendererProps> = ({
 
     return () => {
       cancelled = true;
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
+      if (containerNode) {
+        containerNode.innerHTML = '';
       }
       isInitializedRef.current = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeData, loadGoogleMapsAPI]);
 
   useEffect(() => {
