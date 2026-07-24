@@ -1,132 +1,74 @@
 import { create } from 'zustand';
-import type { CameraState, MapEngine, RouteData } from '../types';
-import { allPackages } from '../data/packages';
-import { fetchRealRoadRoute, snapWaypointsToRoute } from '../utils/routeFetcher';
-import { generateTourPathData, type TourPathData } from '../utils/cameraPath';
+import type { RouteData, TourPathData, MapEngine, CameraState, ActiveStreetView } from '../types';
+import { sampleTrekPath, fullRouteData, tourPath } from '../data/sampleTrekData';
 
-export type ViewMode = 'overview' | 'focused-journey';
-
-interface JourneyState {
-  packages: Omit<RouteData, 'route_geometry'>[];
+interface JourneyStore {
+  // Current active package
   selectedPackageSlug: string;
-  selectPackage: (slug: string) => Promise<void>;
+  selectPackage: (slug: string) => void;
 
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-
-  selectedState: string;
-  setSelectedState: (state: string) => void;
-
-  selectedSeason: string;
-  setSelectedSeason: (season: string) => void;
-
-  selectedDifficulty: string;
-  setSelectedDifficulty: (difficulty: string) => void;
-
-  selectedCategory: string;
-  setSelectedCategory: (category: string) => void;
-
-  resetFilters: () => void;
-
-  viewMode: ViewMode;
-  setViewMode: (mode: ViewMode) => void;
-
-  routeData: RouteData | null;
-  isLoadingRoute: boolean;
-
-  tourPathData: TourPathData | null;
-
+  // Tour State
   tourStarted: boolean;
   setTourStarted: (started: boolean) => void;
 
+  // Flight & Step Data
+  routeData: RouteData;
+  tourPathData: TourPathData;
+  isLoadingRoute: boolean;
+
+  // Progress Tracking
   activeWaypointIndex: number;
   setActiveWaypointIndex: (index: number) => void;
-
-  tourProgress: number;
+  tourProgress: number; // 0 to 1
   setTourProgress: (progress: number) => void;
 
+  // Engine Switcher
   mapEngine: MapEngine;
   setMapEngine: (engine: MapEngine) => void;
 
+  // Camera Zoom Level Offset
   userZoomOffset: number;
   zoomIn: () => void;
   zoomOut: () => void;
   resetZoom: () => void;
 
-  activeStreetView: { coords: [number, number]; title: string; photoSphereUrl?: string } | null;
+  // Active 360 StreetView / Drone Modal
+  activeStreetView: ActiveStreetView | null;
   openStreetView: (coords: [number, number], title: string, photoSphereUrl?: string) => void;
   closeStreetView: () => void;
 
+  // Live Camera state passed to 3D renderer
   cameraState: CameraState;
   setCameraState: (state: CameraState) => void;
 }
 
-export const useJourneyStore = create<JourneyState>((set) => ({
-  packages: allPackages,
-  selectedPackageSlug: allPackages[0].slug,
-
-  searchQuery: '',
-  setSearchQuery: (query: string) => set({ searchQuery: query }),
-
-  selectedState: 'All',
-  setSelectedState: (state: string) => set({ selectedState: state }),
-
-  selectedSeason: 'All',
-  setSelectedSeason: (season: string) => set({ selectedSeason: season }),
-
-  selectedDifficulty: 'All',
-  setSelectedDifficulty: (difficulty: string) => set({ selectedDifficulty: difficulty }),
-
-  selectedCategory: 'All',
-  setSelectedCategory: (category: string) => set({ selectedCategory: category }),
-
-  resetFilters: () =>
-    set({
-      searchQuery: '',
-      selectedState: 'All',
-      selectedSeason: 'All',
-      selectedDifficulty: 'All',
-      selectedCategory: 'All',
-    }),
-
-  viewMode: 'overview',
-  setViewMode: (mode: ViewMode) => set({ viewMode: mode }),
-
-  routeData: null,
-  isLoadingRoute: false,
-  tourPathData: null,
-
-  tourStarted: false,
-  setTourStarted: (started: boolean) => set({ tourStarted: started }),
-
-  selectPackage: async (slug: string) => {
-    const pkgInfo = allPackages.find((p) => p.slug === slug);
-    if (!pkgInfo) return;
-
+export const useJourneyStore = create<JourneyStore>((set) => ({
+  selectedPackageSlug: 'kedarkantha',
+  selectPackage: (slug: string) => {
+    const data = sampleTrekPath(slug);
     set({
       selectedPackageSlug: slug,
-      isLoadingRoute: true,
-      activeWaypointIndex: 0,
+      routeData: data.routeData,
+      tourPathData: data.tourPathData,
       tourProgress: 0,
       tourStarted: false,
-      tourPathData: null,
-      viewMode: 'focused-journey',
+      activeWaypointIndex: 0,
+      cameraState: {
+        lng: data.tourPathData.waypoints[0]?.coordinates[0] ?? 78.1822,
+        lat: data.tourPathData.waypoints[0]?.coordinates[1] ?? 31.0745,
+        zoom: 13.5,
+        pitch: 60,
+        bearing: -10,
+      },
     });
+  },
 
-    const realGeometry = await fetchRealRoadRoute(pkgInfo.slug, pkgInfo.waypoints);
-
-    const snappedWaypoints = snapWaypointsToRoute(realGeometry, pkgInfo.waypoints);
-
-    const fullRouteData: RouteData = {
-      ...pkgInfo,
-      route_geometry: realGeometry,
-      waypoints: snappedWaypoints,
-    };
-
-    const tourPath = generateTourPathData(realGeometry, snappedWaypoints);
-
-    const firstWp = snappedWaypoints[0];
+  tourStarted: false,
+  setTourStarted: (started: boolean) => {
+    const firstWp = tourPath.waypoints[0];
     set({
+      tourStarted: started,
+      tourProgress: 0,
       routeData: fullRouteData,
       tourPathData: tourPath,
       isLoadingRoute: false,
@@ -147,12 +89,26 @@ export const useJourneyStore = create<JourneyState>((set) => ({
   tourProgress: 0,
   setTourProgress: (progress: number) => set({ tourProgress: progress }),
 
-  mapEngine: 'mapbox',
+  mapEngine: 'google',
   setMapEngine: (engine: MapEngine) => set({ mapEngine: engine }),
 
   userZoomOffset: 0,
-  zoomIn: () => set((state) => ({ userZoomOffset: Math.min(state.userZoomOffset + 0.75, 2.5) })),
-  zoomOut: () => set((state) => ({ userZoomOffset: Math.max(state.userZoomOffset - 0.75, -4.5) })),
+  zoomIn: () =>
+    set((state) => ({
+      userZoomOffset: Math.min(state.userZoomOffset + 0.75, 4.0),
+      cameraState: {
+        ...state.cameraState,
+        zoom: Math.min(state.cameraState.zoom + 0.75, 20),
+      },
+    })),
+  zoomOut: () =>
+    set((state) => ({
+      userZoomOffset: Math.max(state.userZoomOffset - 0.75, -6.0),
+      cameraState: {
+        ...state.cameraState,
+        zoom: Math.max(state.cameraState.zoom - 0.75, 5),
+      },
+    })),
   resetZoom: () => set({ userZoomOffset: 0 }),
 
   activeStreetView: null,

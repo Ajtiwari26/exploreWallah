@@ -43,69 +43,66 @@ export const Google3DMapRenderer: React.FC<MapRendererProps> = ({
       script.async = true;
       script.defer = true;
       script.onload = () => {
-        const checkReady = setInterval(() => {
+        const checkInterval = setInterval(() => {
           if (win.google?.maps?.maps3d) {
-            clearInterval(checkReady);
+            clearInterval(checkInterval);
             resolve();
           }
         }, 100);
       };
-      script.onerror = () => reject(new Error('Failed to load Google Maps JavaScript API'));
+      script.onerror = () => reject(new Error('Failed to load Google Maps 3D API'));
       document.head.appendChild(script);
     });
   }, []);
 
   useEffect(() => {
-    if (isInitializedRef.current || !containerRef.current) return;
+    let cancelled = false;
 
-    const init = async () => {
+    const initMap = async () => {
       try {
         await loadGoogleMapsAPI();
+        if (cancelled || !containerRef.current) return;
 
-        const container = containerRef.current;
-        if (!container) return;
+        const win = window as any;
+        const { Map3DElement, Polyline3DElement } = win.google.maps.maps3d;
 
-        const mapEl = document.createElement('gmp-map-3d');
-        mapEl.setAttribute('mode', 'SATELLITE');
-        mapEl.setAttribute('default-labels-disabled', '');
-        mapEl.setAttribute('default-ui-hidden', '');
+        if (mapElementRef.current) {
+          containerRef.current.innerHTML = '';
+        }
+
+        const mapEl = new Map3DElement({
+          center: { lat: cameraState.lat, lng: cameraState.lng },
+          tilt: cameraState.pitch,
+          heading: cameraState.bearing,
+          range: Math.pow(2, 20 - cameraState.zoom) * 2,
+        });
+
         mapEl.style.width = '100%';
         mapEl.style.height = '100%';
 
-        mapEl.setAttribute('center', `${cameraState.lat},${cameraState.lng}`);
-        mapEl.setAttribute('tilt', String(cameraState.pitch));
-        mapEl.setAttribute('heading', String(cameraState.bearing));
-        mapEl.setAttribute('range', '5000');
-
-        container.appendChild(mapEl);
-        mapElementRef.current = mapEl;
-
-        const polyline = document.createElement('gmp-polyline-3d');
-        polyline.setAttribute('stroke-color', '#ff0033');
-        polyline.setAttribute('stroke-width', '14');
-        polyline.setAttribute('stroke-opacity', '1.0');
-        polyline.setAttribute('draws-occluded-segments', '');
+        const polyline = new Polyline3DElement({
+          strokeColor: '#38bdf8',
+          strokeWidth: 8,
+          altitudeMode: 'CLAMP_TO_GROUND',
+        });
 
         mapEl.appendChild(polyline);
         polylineElementRef.current = polyline;
-
-        await customElements.whenDefined('gmp-polyline-3d');
+        containerRef.current.appendChild(mapEl);
+        mapElementRef.current = mapEl;
         isInitializedRef.current = true;
-      } catch (error) {
-        console.error('Google 3D Maps initialization error:', error);
+      } catch {
+        // Fallback or error handled silently
       }
     };
 
-    init();
-
-    const containerEl = containerRef.current;
+    initMap();
 
     return () => {
-      if (containerEl) {
-        containerEl.innerHTML = '';
+      cancelled = true;
+      if (containerRef.current) {
+        containerRef.current.innerHTML = '';
       }
-      mapElementRef.current = null;
-      polylineElementRef.current = null;
       isInitializedRef.current = false;
     };
   }, [routeData, loadGoogleMapsAPI]);
@@ -128,6 +125,8 @@ export const Google3DMapRenderer: React.FC<MapRendererProps> = ({
     polyline.coordinates = coords;
   }, [tourProgress, routeData]);
 
+  const userZoomOffset = useJourneyStore((state) => state.userZoomOffset);
+
   useEffect(() => {
     const mapEl = mapElementRef.current;
     if (!mapEl || !isInitializedRef.current) return;
@@ -139,8 +138,9 @@ export const Google3DMapRenderer: React.FC<MapRendererProps> = ({
     const zoomToRange = (zoom: number): number => {
       return Math.pow(2, 20 - zoom) * 2;
     };
-    mapEl.range = zoomToRange(cameraState.zoom);
-  }, [cameraState]);
+    const effectiveZoom = Math.max(5, Math.min(20, cameraState.zoom + userZoomOffset));
+    mapEl.range = zoomToRange(effectiveZoom);
+  }, [cameraState, userZoomOffset]);
 
   return (
     <div
